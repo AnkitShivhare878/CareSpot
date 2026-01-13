@@ -45,9 +45,10 @@ router.post('/', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Chat Route Error:', error);
-        res.status(500).json({
-            reply: "I'm having trouble connecting to my brain right now.",
-            error: error.message
+        // Graceful fallback so the UI shows a message instead of an error
+        console.log('⚠️ Falling back to offline response due to API error');
+        res.json({
+            reply: "My AI brain is currently locked (API Key 403 Forbidden). Please generate a new key at aistudio.google.com and update the .env file to fix me!",
         });
     }
 });
