@@ -37,7 +37,7 @@ const DoctorFilterScreen = ({ navigation }: { navigation: NavigationProp }) => {
 
       {/* Banner */}
       <View style={styles.banner}>
-        <Text style={styles.bannerText}>Protect Yourself Against Covid-19</Text>
+        <Text style={styles.bannerText}>Have a Good Day</Text>
       </View>
 
       {/* Filter */}
@@ -123,6 +123,9 @@ const styles = StyleSheet.create({
 
   banner: {
     backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight:'bold',
     padding: 16,
     marginHorizontal: 16,
     borderRadius: 12,
