@@ -1,58 +1,51 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View, Dimensions, Platform, Pressable, TextInput } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, FadeInRight, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import DoctorCard from '../../components/doctorcard';
 import HospitalCard from '../../components/hospitalcard';
 import { api } from '../config/api.config';
+import { COLORS, SHADOWS } from '../../constants/theme';
 
-// Define theme colors
-const THEME = {
-  background: 'white',
-  cardBackground: '#FFF5F5',
-  primary: '#FF0000',
-  textPrimary: '#000000',
-  textSecondary: '#AAAAAA',
-  borderColor: '#E5E5E5',
-};
-
-// Fallback dummy doctors (since Doctor API not in backend yet)
-const fallbackDoctors = [
-  {
-    name: 'Dr. Srivathsavi Mallik',
-    specialization: 'Orthopedic surgeon',
-    rating: 4.7,
-    image: require('@/assets/images/doctor1.png'),
-  },
-  {
-    name: 'Dr. Michael Thompson',
-    specialization: 'Neurosurgeon',
-    rating: 4.8,
-    image: require('@/assets/images/doctor2.jpeg'),
-  },
-  {
-    name: 'Dr. Sarah Jenkin',
-    specialization: 'Cardiologist',
-    rating: 4.9,
-    image: require('@/assets/images/doctor1.png'),
-  },
-  {
-    name: 'Dr. James Wilson',
-    specialization: 'General Surgeon',
-    rating: 4.5,
-    image: require('@/assets/images/doctor2.jpeg'),
-  },
-];
+const { width } = Dimensions.get('window');
 
 // Hospital images for mapping
 const hospitalImages = [
   require('@/assets/images/h3.png'),
   require('@/assets/images/h4.png'),
   require('@/assets/images/h5.png'),
+];
+
+// Fallback dummy doctors
+const fallbackDoctors = [
+  {
+    id: 'd1',
+    name: 'Dr. Srivathsavi Mallik',
+    specialization: 'Orthopedic surgeon',
+    rating: 4.7,
+    image: require('@/assets/images/doctor1.png'),
+  },
+  {
+    id: 'd2',
+    name: 'Dr. Michael Thompson',
+    specialization: 'Neurosurgeon',
+    rating: 4.8,
+    image: require('@/assets/images/doctor2.jpeg'),
+  },
+  {
+    id: 'd3',
+    name: 'Dr. Sarah Jenkin',
+    specialization: 'Cardiologist',
+    rating: 4.9,
+    image: require('@/assets/images/doctor1.png'),
+  },
 ];
 
 interface Hospital {
@@ -63,13 +56,15 @@ interface Hospital {
   photo?: string;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export default function HomeScreen() {
   const router = useRouter();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch hospitals from API
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
@@ -80,18 +75,15 @@ export default function HomeScreen() {
       } catch (err: any) {
         console.error('Failed to fetch hospitals:', err);
         setError('Failed to load hospitals');
-        // Use fallback data if API fails
         setHospitals([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchHospitals();
   }, []);
 
-  // Map hospital data for display
-  const displayHospitals = hospitals.length > 0
+  const displayHospitals = (hospitals.length > 0
     ? hospitals.map((h, index) => ({
       _id: h._id,
       name: h.name,
@@ -100,134 +92,219 @@ export default function HomeScreen() {
       image: hospitalImages[index % hospitalImages.length],
     }))
     : [
-      // Fallback if no hospitals from API
       { _id: '1', name: 'Patel Orthopaedic', location: 'Seattle, WA', rating: 4.6, image: hospitalImages[0] },
       { _id: '2', name: 'ARC Max Hospital', location: 'Springfield, IL', rating: 4.9, image: hospitalImages[1] },
-      { _id: '3', name: 'City Care Clinic', location: 'Austin, TX', rating: 4.5, image: hospitalImages[2] },
-    ];
+    ]).filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const displayDoctors = fallbackDoctors.filter(d =>
+    d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.specialization.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handlePressAction = (path: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(path as any);
+  };
+
+  const handleDoctorPress = (doctor: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/doctor/[id]',
+      params: { id: doctor.id, name: doctor.name, specialization: doctor.specialization, rating: doctor.rating }
+    } as any);
+  };
+
+  const handleHospitalPress = (hospital: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/hospitals/[id]',
+      params: { id: hospital._id, name: hospital.name, location: hospital.location, rating: hospital.rating }
+    } as any);
+  };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <ThemedView style={styles.header}>
-        <ThemedText type="title" style={styles.headerText}>HealthHive</ThemedText>
-      </ThemedView>
-
-      <View style={styles.banner}>
-        <Image
-          source={require('@/assets/images/hospital2.png')}
-          style={styles.bannerImage}
-          contentFit="cover"
-        />
-        <View style={styles.bannerOverlay}>
-          <ThemedText style={styles.bannerText}>Emergency? We are here.</ThemedText>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>What do you need?</ThemedText>
-        <View style={styles.grid}>
-          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/ambulance')}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons name="ambulance" size={32} color={THEME.primary} />
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} bounces={true}>
+      {/* Premium Header */}
+      <Animated.View
+        entering={FadeInDown.duration(800).springify()}
+        style={styles.headerContainer}
+      >
+        <LinearGradient
+          colors={[COLORS.primary, COLORS.accent]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <View style={styles.headerTop}>
+            <View>
+              <ThemedText style={styles.greetingText}>Welcome!</ThemedText>
+              <ThemedText style={styles.subtitleText}>How are you feeling today?</ThemedText>
             </View>
-            <ThemedText style={styles.gridText}>Ambulance</ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/doctor')}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons name="doctor" size={32} color={THEME.primary} />
-            </View>
-            <ThemedText style={styles.gridText}>Doctor</ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/hospitals')}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons name="hospital-building" size={32} color={THEME.primary} />
-            </View>
-            <ThemedText style={styles.gridText}>Hospitals</ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.gridItem} onPress={() => router.push('/chat')}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons name="message-text" size={32} color={THEME.primary} />
-            </View>
-            <ThemedText style={styles.gridText}>Health Chat</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Top Doctors Section */}
-      <View style={styles.section}>
-        <View style={styles.bigCard}>
-          <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle" style={[styles.sectionTitle, { color: THEME.textPrimary }]}>
-              Top Doctors
-            </ThemedText>
-            <TouchableOpacity onPress={() => router.push('/doctors')}>
-              <ThemedText style={styles.seeAllText}>See all</ThemedText>
+            <TouchableOpacity
+              style={styles.notificationCircle}
+              onPress={() => Haptics.selectionAsync()}
+            >
+              <MaterialCommunityIcons name="bell-outline" size={24} color={COLORS.white} />
+              <View style={styles.notificationDot} />
             </TouchableOpacity>
           </View>
 
+          <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.searchBar}>
+            <MaterialCommunityIcons name="magnify" size={22} color={COLORS.textLight} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search for doctors, hospitals..."
+              placeholderTextColor={COLORS.textLight}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCorrect={false}
+            />
+          </Animated.View>
+        </LinearGradient>
+      </Animated.View>
+
+      <View style={styles.content}>
+        {/* Quick Actions Grid */}
+        <Animated.View
+          entering={FadeInDown.delay(400).duration(800)}
+          style={styles.section}
+        >
+          <View style={styles.quickActionsGrid}>
+            {[
+              { id: 'ambulance', name: 'Ambulance', icon: 'ambulance', path: '/ambulance/pickup', color: '#FEF2F2', iconColor: '#EF4444' },
+              { id: 'doctor', name: 'Best Doctor', icon: 'doctor', path: '/doctor', color: '#EFF6FF', iconColor: '#3B82F6' },
+              { id: 'hospitals', name: 'Hospitals', icon: 'hospital-building', path: '/hospitals', color: '#F0FDF4', iconColor: '#22C55E' },
+              { id: 'chat', name: 'AI Chat', icon: 'robot', path: '/chat', color: '#FAF5FF', iconColor: '#A855F7' },
+            ].map((item, index) => {
+              const scale = useSharedValue(1);
+              const animatedStyle = useAnimatedStyle(() => ({
+                transform: [{ scale: scale.value }]
+              }));
+
+              return (
+                <AnimatedPressable
+                  key={item.id}
+                  style={[styles.actionItem, animatedStyle]}
+                  onPressIn={() => (scale.value = withSpring(0.9))}
+                  onPressOut={() => (scale.value = withSpring(1))}
+                  onPress={() => handlePressAction(item.path)}
+                >
+                  <View style={[styles.actionIconContainer, { backgroundColor: item.color }]}>
+                    <MaterialCommunityIcons name={item.icon as any} size={28} color={item.iconColor} />
+                  </View>
+                  <ThemedText style={styles.actionLabel}>{item.name}</ThemedText>
+                </AnimatedPressable>
+              );
+            })}
+          </View>
+        </Animated.View>
+
+        {/* Dynamic Health Banner */}
+        <Animated.View
+          entering={FadeInDown.delay(600).duration(800)}
+          style={styles.bannerSection}
+        >
+          <LinearGradient
+            colors={['#1E293B', '#334155']}
+            style={styles.bannerContainer}
+          >
+            <View style={styles.bannerContent}>
+              <ThemedText style={styles.bannerTitle}>Checkup Promo!</ThemedText>
+              <ThemedText style={styles.bannerDescription}>Get 50% off on your first home visit lab test.</ThemedText>
+              <TouchableOpacity
+                style={styles.bannerButton}
+                onPress={() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)}
+              >
+                <ThemedText style={styles.bannerButtonText}>Claim Now</ThemedText>
+              </TouchableOpacity>
+            </View>
+            <Image
+              source={require('@/assets/images/doctor1.png')}
+              style={styles.bannerImage}
+            />
+          </LinearGradient>
+        </Animated.View>
+
+        {/* Bottom Call Ambulance FAB Style */}
+        <Animated.View entering={FadeInDown.delay(800).duration(800)}>
+          <TouchableOpacity
+            style={styles.ambulanceFab}
+            onPress={() => handlePressAction('/ambulance/pickup')}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.accent]}
+              style={styles.ambulanceFabGradient}
+            >
+              <MaterialCommunityIcons name="phone" size={24} color="white" />
+              <ThemedText style={styles.ambulanceFabText}>Urgent Ambulance</ThemedText>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Top Doctors Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Top Specialists</ThemedText>
+            <TouchableOpacity onPress={() => handlePressAction('/doctor')}>
+              <ThemedText style={styles.seeAllText}>See all</ThemedText>
+            </TouchableOpacity>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
+            contentContainerStyle={styles.horizontalList}
           >
-            {fallbackDoctors.map((doctor, index) => (
-              <View key={index} style={styles.cardWrapper}>
-                <DoctorCard doctor={doctor} />
-              </View>
+            {displayDoctors.map((doctor, index) => (
+              <Animated.View
+                key={doctor.id}
+                entering={FadeInRight.delay(index * 100).duration(600)}
+              >
+                <DoctorCard
+                  doctor={doctor}
+                  onPress={() => handleDoctorPress(doctor)}
+                />
+              </Animated.View>
             ))}
           </ScrollView>
+          {displayDoctors.length === 0 && (
+            <ThemedText style={styles.emptyText}>No doctors found matching "{searchQuery}"</ThemedText>
+          )}
         </View>
-      </View>
 
-      {/* Top Hospital Section - Now with Real Data */}
-      <View style={styles.section}>
-        <View style={styles.bigCard}>
+        {/* Recommended Hospitals Section */}
+        <View style={[styles.section, { marginBottom: 100 }]}>
           <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle" style={[styles.sectionTitle, { color: THEME.textPrimary }]}>
-              Top Hospital
-            </ThemedText>
-            <TouchableOpacity onPress={() => router.push('/hospitals')}>
+            <ThemedText style={styles.sectionTitle}>Recommended Hospitals</ThemedText>
+            <TouchableOpacity onPress={() => handlePressAction('/hospitals')}>
               <ThemedText style={styles.seeAllText}>See all</ThemedText>
             </TouchableOpacity>
           </View>
-
           {loading ? (
-            <ActivityIndicator size="large" color={THEME.primary} style={{ marginVertical: 20 }} />
-          ) : error ? (
-            <ThemedText style={{ color: THEME.textSecondary, textAlign: 'center', marginVertical: 20 }}>
-              {error}
-            </ThemedText>
+            <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
           ) : (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScrollContent}
+              contentContainerStyle={styles.horizontalList}
             >
               {displayHospitals.map((hospital, index) => (
-                <View key={hospital._id || index} style={styles.cardWrapper}>
-                  <HospitalCard hospital={hospital} />
-                </View>
+                <Animated.View
+                  key={hospital._id}
+                  entering={FadeInRight.delay(index * 100).duration(600)}
+                >
+                  <HospitalCard
+                    hospital={hospital}
+                    onPress={() => handleHospitalPress(hospital)}
+                  />
+                </Animated.View>
               ))}
             </ScrollView>
           )}
+          {!loading && displayHospitals.length === 0 && (
+            <ThemedText style={styles.emptyText}>No hospitals found matching "{searchQuery}"</ThemedText>
+          )}
         </View>
-      </View>
-
-      {/* Call Button */}
-      <TouchableOpacity
-        style={styles.ambulanceButton}
-        onPress={() => router.push('/ambulance/pickup')}
-      >
-        <MaterialCommunityIcons name="phone" size={24} color="white" style={{ marginRight: 8 }} />
-        <ThemedText style={styles.ambulanceButtonText}>Call Ambulance</ThemedText>
-      </TouchableOpacity>
-
-      <View style={styles.footer}>
-        <ThemedText type="subtitle" style={styles.footerTitle}>Take care of your body</ThemedText>
-        <ThemedText style={styles.footerText}>Your health, our priority - always here for you.</ThemedText>
       </View>
     </ScrollView>
   );
@@ -236,144 +313,197 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.background,
+    backgroundColor: COLORS.background,
   },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 16,
+  headerContainer: {
+    paddingBottom: 20,
+  },
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingBottom: 30,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    ...SHADOWS.large,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: THEME.background,
+    marginBottom: 24,
   },
-  headerText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: THEME.primary,
+  greetingText: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: COLORS.white,
   },
-  banner: {
-    marginHorizontal: 16,
-    height: 160,
-    borderRadius: 16,
-    overflow: 'hidden',
+  subtitleText: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  notificationCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: '#333',
   },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  bannerOverlay: {
+  notificationDot: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 10,
+    top: 12,
+    right: 13,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFD700',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
   },
-  bannerText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+  searchBar: {
+    height: 54,
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 12,
+    ...SHADOWS.small,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.text,
+    paddingVertical: 8,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: COLORS.textLight,
+    marginTop: 20,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  searchPlaceholder: {
+    color: COLORS.textLight,
+    fontSize: 15,
+  },
+  content: {
+    marginTop: -20,
   },
   section: {
     marginTop: 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
-  sectionTitle: {
-    color: THEME.textPrimary,
-    fontSize: 18,
-    marginBottom: 12,
+  quickActionsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.white,
+    padding: 20,
+    borderRadius: 24,
+    ...SHADOWS.medium,
+  },
+  actionItem: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  bannerSection: {
+    marginVertical: 24,
+    paddingHorizontal: 20,
+  },
+  bannerContainer: {
+    borderRadius: 24,
+    padding: 24,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    height: 160,
+  },
+  bannerContent: {
+    flex: 1,
+    zIndex: 1,
+  },
+  bannerTitle: {
+    color: COLORS.white,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  bannerDescription: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  bannerButton: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  bannerButtonText: {
+    color: COLORS.secondary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  bannerImage: {
+    width: 140,
+    height: 180,
+    position: 'absolute',
+    right: -20,
+    bottom: -20,
+    opacity: 0.9,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: COLORS.text,
   },
   seeAllText: {
-    color: THEME.primary,
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 14,
   },
-  grid: {
+  horizontalList: {
+    paddingRight: 20,
+    gap: 16,
+    paddingBottom: 10,
+  },
+  ambulanceFab: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  ambulanceFabGradient: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-  },
-  gridItem: {
-    alignItems: 'center',
-    width: 70,
-  },
-  iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: THEME.cardBackground,
+    padding: 18,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  gridText: {
-    color: THEME.textPrimary,
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  horizontalScrollContent: {
-    paddingRight: 16,
     gap: 12,
+    ...SHADOWS.large,
   },
-  cardWrapper: {},
-  ambulanceButton: {
-    backgroundColor: THEME.primary,
-    flexDirection: 'row',
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 32,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FF0000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  ambulanceButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  footer: {
-    margin: 16,
-    marginTop: 32,
-    marginBottom: 50,
-    padding: 20,
-    backgroundColor: THEME.cardBackground,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: THEME.primary,
-  },
-  footerTitle: {
-    color: THEME.textPrimary,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  footerText: {
-    color: THEME.textSecondary,
-    fontSize: 13,
-  },
-  bigCard: {
-    backgroundColor: THEME.cardBackground,
-    borderRadius: 24,
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: THEME.borderColor,
+  ambulanceFabText: {
+    color: COLORS.white,
+    fontWeight: '800',
+    fontSize: 17,
   },
 });

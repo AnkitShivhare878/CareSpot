@@ -8,6 +8,7 @@ export default function AmbulanceLayout() {
       <Stack.Screen name="ambulance-type" />
       <Stack.Screen name="payment" />
       <Stack.Screen name="confirmation" />
+      <Stack.Screen name="tracking" />
     </Stack>
   );
 }

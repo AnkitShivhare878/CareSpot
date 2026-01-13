@@ -1,16 +1,43 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, Dimensions } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ThemedText } from '@/components/themed-text';
+import { COLORS, SHADOWS } from '../../constants/theme';
+import Animated, { FadeInDown, FadeInUp, withSpring, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+
+const { width } = Dimensions.get('window');
 
 type NavigationProp = {
   navigate: (screen: string) => void;
   goBack: () => void;
 };
 
-const DoctorInfoScreen = ({ navigation }: { navigation: NavigationProp }) => {
+const DoctorInfoScreen = ({ navigation, doctorData }: { navigation: NavigationProp, doctorData?: any }) => {
   const [selectedDate, setSelectedDate] = useState('23');
   const [selectedTime, setSelectedTime] = useState('02:00 PM');
 
-  const dates = ['21', '22', '23', '24', '25', '26', '27'];
+  // Fallback data
+  const info = {
+    name: doctorData?.name || 'Dr. Neha Viswanathan',
+    specialty: doctorData?.specialization || 'Cardiovascular Technologist',
+    rating: doctorData?.rating || '4.9',
+    patients: '2.5k+',
+    exp: '12yrs',
+    image: doctorData?.image || 'https://www.woodlandshospital.in/images/doctor-img/Sushovan-Chowdhury.jpg'
+  };
+
+  const dates = [
+    { day: 'Mon', date: '21' },
+    { day: 'Tue', date: '22' },
+    { day: 'Wed', date: '23' },
+    { day: 'Thu', date: '24' },
+    { day: 'Fri', date: '25' },
+    { day: 'Sat', date: '26' },
+    { day: 'Sun', date: '27' },
+  ];
+
   const times = [
     '09:00 AM', '10:00 AM', '11:00 AM',
     '01:00 PM', '02:00 PM', '03:00 PM',
@@ -18,84 +45,147 @@ const DoctorInfoScreen = ({ navigation }: { navigation: NavigationProp }) => {
   ];
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Appointment</Text>
-      </View>
-
-      {/* Doctor Card */}
-      <View style={styles.doctorCard}>
-        <Image
-          source={{ uri: 'https://www.woodlandshospital.in/images/doctor-img/Sushovan-Chowdhury.jpg' }}
-          style={styles.doctorImage}
-        />
-        <View>
-          <Text style={styles.doctorName}>Dr. Neha Viswanathan</Text>
-          <Text style={styles.doctorSpecialty}>Cardiovascular Technologist</Text>
-          <Text style={styles.doctorRating}>★★★★☆ (4.6)</Text>
-        </View>
-      </View>
-
-      {/* About */}
-      <View style={styles.aboutSection}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <Text style={styles.aboutText}>
-          Dr. Neha Viswanathan is a highly skilled cardiovascular technologist...
-          <Text style={styles.readMore}> Read more</Text>
-        </Text>
-      </View>
-
-      {/* Date */}
-      <View style={styles.dateSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Select date</Text>
-          <TouchableOpacity>
-            <Text style={styles.changeButton}>Change</Text>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Premium Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.text} />
+          </TouchableOpacity>
+          <ThemedText style={styles.headerTitle}>Appointment</ThemedText>
+          <TouchableOpacity style={styles.favoriteButton}>
+            <MaterialCommunityIcons name="heart-outline" size={24} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {dates.map((date) => (
-            <TouchableOpacity
-              key={date}
-              style={[styles.date, selectedDate === date && styles.selectedDate]}
-              onPress={() => setSelectedDate(date)}
-            >
-              <Text style={[styles.dateText, selectedDate === date && styles.selectedDateText]}>
-                {date}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+        {/* Doctor Identity Profile */}
+        <Animated.View entering={FadeInDown.duration(800)} style={styles.profileSection}>
+          <View style={styles.imageWrapper}>
+            <Image
+              source={typeof info.image === 'string' ? { uri: info.image } : info.image}
+              style={styles.doctorImage}
+            />
+            <View style={styles.activeBadge} />
+          </View>
+          <ThemedText style={styles.doctorName}>{info.name}</ThemedText>
+          <ThemedText style={styles.doctorSpecialty}>{info.specialty}</ThemedText>
 
-      {/* Time */}
-      <View style={styles.timeSection}>
-        <Text style={styles.sectionTitle}>Select Time</Text>
-        <View style={styles.timeContainer}>
-          {times.map((time) => (
-            <TouchableOpacity
-              key={time}
-              style={[styles.time, selectedTime === time && styles.selectedTime]}
-              onPress={() => setSelectedTime(time)}
-            >
-              <Text style={[styles.timeText, selectedTime === time && styles.selectedTimeText]}>
-                {time}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <MaterialCommunityIcons name="star" size={20} color="#FFB800" />
+              <ThemedText style={styles.statValue}>4.9</ThemedText>
+              <ThemedText style={styles.statLabel}>Rating</ThemedText>
+            </View>
+            <View style={[styles.statBox, styles.statDivider]}>
+              <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
+              <ThemedText style={styles.statValue}>2.5k+</ThemedText>
+              <ThemedText style={styles.statLabel}>Patients</ThemedText>
+            </View>
+            <View style={styles.statBox}>
+              <MaterialCommunityIcons name="briefcase-variant" size={20} color="#10B981" />
+              <ThemedText style={styles.statValue}>12yrs</ThemedText>
+              <ThemedText style={styles.statLabel}>Exp.</ThemedText>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* About Section */}
+        <View style={styles.sectionContainer}>
+          <ThemedText style={styles.sectionTitle}>About Doctor</ThemedText>
+          <ThemedText style={styles.aboutText}>
+            Dr. Neha Viswanathan is a highly skilled cardiovascular technologist with over 12 years of experience in diagnosing and treating heart conditions. She specializes in advanced echocardiography and interventional cardiology procedures.
+            <ThemedText style={styles.readMore}> Read more...</ThemedText>
+          </ThemedText>
         </View>
-      </View>
 
-      {/* Book */}
-      <TouchableOpacity style={styles.bookButton} onPress={() => navigation.navigate('Payment')}>
-        <Text style={styles.bookButtonText}>Book Appointment</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Slot Selection - Date */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Select Date</ThemedText>
+            <TouchableOpacity>
+              <ThemedText style={styles.monthText}>October 2023</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
+            {dates.map((item) => (
+              <TouchableOpacity
+                key={item.date}
+                style={[
+                  styles.dateCard,
+                  selectedDate === item.date && styles.selectedDateCard
+                ]}
+                onPress={() => setSelectedDate(item.date)}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={[
+                  styles.dayText,
+                  selectedDate === item.date && styles.selectedDateText
+                ]}>
+                  {item.day}
+                </ThemedText>
+                <ThemedText style={[
+                  styles.dateText,
+                  selectedDate === item.date && styles.selectedDateText
+                ]}>
+                  {item.date}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Slot Selection - Time */}
+        <Animated.View entering={FadeInUp.delay(400).duration(800)} style={styles.sectionContainer}>
+          <ThemedText style={styles.sectionTitle}>Select Time</ThemedText>
+          <View style={styles.timeGrid}>
+            {times.map((time) => (
+              <TouchableOpacity
+                key={time}
+                style={[
+                  styles.timeSlot,
+                  selectedTime === time && styles.selectedTimeSlot
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setSelectedTime(time);
+                }}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={[
+                  styles.timeText,
+                  selectedTime === time && styles.selectedTimeText
+                ]}>
+                  {time}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+
+      {/* Floating Action Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.bookButton}
+          onPress={() => navigation.navigate('Payment')}
+          activeOpacity={0.9}
+        >
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.accent]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.bookGradient}
+          >
+            <ThemedText style={styles.bookButtonText}>Book Appointment</ThemedText>
+            <View style={styles.priceBadge}>
+              <ThemedText style={styles.priceText}>₹500</ThemedText>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -104,168 +194,234 @@ export default DoctorInfoScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.white,
   },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-
   backButton: {
-    fontSize: 28,
-    marginRight: 16,
-    color: '#E10600',
-  },
-
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#000000',
-  },
-
-  doctorCard: {
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    margin: 16,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
   },
-
+  favoriteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF5F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.text,
+  },
+  profileSection: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  imageWrapper: {
+    position: 'relative',
+    marginBottom: 16,
+  },
   doctorImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginRight: 16,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: COLORS.surface,
   },
-
+  activeBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.success,
+    borderWidth: 3,
+    borderColor: COLORS.white,
+  },
   doctorName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  doctorSpecialty: {
+    fontSize: 15,
+    color: COLORS.textLight,
+    fontWeight: '500',
+    marginBottom: 24,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 20,
+    width: '100%',
+    justifyContent: 'space-around',
+    ...SHADOWS.small,
+  },
+  statBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statDivider: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  statValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#000000',
-  },
-
-  doctorSpecialty: {
-    color: '#777777',
-  },
-
-  doctorRating: {
-    color: '#E10600',
+    color: COLORS.text,
     marginTop: 4,
   },
-
-  aboutSection: {
-    padding: 16,
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '600',
   },
-
-  aboutText: {
-    color: '#444444',
+  sectionContainer: {
+    padding: 20,
   },
-
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 8,
-    color: '#000000',
+    color: COLORS.text,
+    marginBottom: 12,
   },
-
+  aboutText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#64748B',
+    fontWeight: '500',
+  },
   readMore: {
-    color: '#E10600',
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: '700',
   },
-
-  dateSection: {
-    padding: 16,
-  },
-
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-
-  changeButton: {
-    color: '#E10600',
-    fontWeight: '600',
+  monthText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '700',
   },
-
-  date: {
-    backgroundColor: '#F2F2F2',
-    padding: 16,
-    borderRadius: 12,
-    marginRight: 8,
+  dateList: {
+    gap: 12,
+  },
+  dateCard: {
+    width: 64,
+    height: 80,
+    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 60,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-
-  selectedDate: {
-    backgroundColor: '#FF0000',
+  selectedDateCard: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+    ...SHADOWS.small,
   },
-
-  dateText: {
-    color: '#000000',
+  dayText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: COLORS.textLight,
+    marginBottom: 4,
   },
-
+  dateText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.text,
+  },
   selectedDateText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
   },
-
-  timeSection: {
-    padding: 16,
+  selectedTimeText: {
+    color: COLORS.primary,
   },
-
-  timeContainer: {
+  timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 12,
   },
-
-  time: {
-    backgroundColor: '#F2F2F2',
-    padding: 12,
-    borderRadius: 12,
-    width: '32%',
+  timeSlot: {
+    width: (width - 64) / 3,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
   },
-
-  selectedTime: {
-    backgroundColor: '#FF0000',
+  selectedTimeSlot: {
+    backgroundColor: '#FFF5F7',
+    borderColor: COLORS.primary,
   },
-
   timeText: {
-    color: '#000000',
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
   },
-
-  selectedTimeText: {
-    color: '#FFFFFF',
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    backgroundColor: COLORS.white,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
-
   bookButton: {
-    backgroundColor: '#FF0000',
-    padding: 18,
-    margin: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: '#FF0000',
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    borderRadius: 24,
+    overflow: 'hidden',
+    ...SHADOWS.medium,
   },
-
+  bookGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
   bookButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+    color: COLORS.white,
     fontSize: 18,
+    fontWeight: '800',
+    flex: 1,
+    textAlign: 'center',
+    marginLeft: 40,
+  },
+  priceBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  priceText: {
+    color: COLORS.white,
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

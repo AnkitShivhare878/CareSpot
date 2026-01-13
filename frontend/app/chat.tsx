@@ -1,18 +1,22 @@
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
     StyleSheet,
-    Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { api } from './config/api.config';
+import { ThemedText } from '@/components/themed-text';
+import { COLORS, SHADOWS } from '../constants/theme';
 
 interface Message {
     id: string;
@@ -26,7 +30,7 @@ export default function ChatScreen() {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
-            text: "Hello! I'm HealthHive AI. I can help you with general health questions. How can I assist you today?",
+            text: "Hello! I'm your AI Medical Assistant. I'm here to help you understand symptoms or find medical information. How can I help you today?",
             isUser: false,
             timestamp: new Date(),
         },
@@ -48,23 +52,21 @@ export default function ChatScreen() {
         setMessages((prev) => [...prev, userMsg]);
         setInputText('');
         setIsLoading(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         try {
-            // Call the API
             const response = await api.chatWithBot(userMsg.text);
-
             const botMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 text: response.reply,
                 isUser: false,
                 timestamp: new Date(),
             };
-
             setMessages((prev) => [...prev, botMsg]);
         } catch (error) {
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
-                text: "Sorry, I'm finding it hard to verify that right now. Please check your connection.",
+                text: "I'm having trouble connecting to the network. Please try again in a moment.",
                 isUser: false,
                 timestamp: new Date(),
             };
@@ -78,21 +80,22 @@ export default function ChatScreen() {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-            {/* Header */}
+            {/* Premium Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={24} color="#000" />
+                    <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.text} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleContainer}>
-                    <Text style={styles.headerTitle}>Health Assistant</Text>
+                    <ThemedText style={styles.headerTitle}>AI Assistant</ThemedText>
                     <View style={styles.statusIndicator}>
                         <View style={styles.statusDot} />
-                        <Text style={styles.statusText}>Online</Text>
+                        <ThemedText style={styles.statusText}>Active Now</ThemedText>
                     </View>
                 </View>
-                <TouchableOpacity>
-                    <Ionicons name="ellipsis-horizontal" size={24} color="#000" />
+                <TouchableOpacity style={styles.moreButton}>
+                    <MaterialCommunityIcons name="dots-vertical" size={24} color={COLORS.text} />
                 </TouchableOpacity>
             </View>
 
@@ -102,67 +105,99 @@ export default function ChatScreen() {
                 style={styles.chatArea}
                 contentContainerStyle={styles.chatContent}
                 onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+                showsVerticalScrollIndicator={false}
             >
-                {messages.map((msg) => (
-                    <View
+                {messages.map((msg, index) => (
+                    <Animated.View
                         key={msg.id}
+                        entering={msg.isUser ? FadeInUp : FadeInDown}
+                        layout={Layout.springify()}
                         style={[
-                            styles.messageBubble,
-                            msg.isUser ? styles.userBubble : styles.botBubble,
+                            styles.messageWrapper,
+                            msg.isUser ? styles.userWrapper : styles.botWrapper,
                         ]}
                     >
                         {!msg.isUser && (
-                            <View style={styles.botIcon}>
-                                <Ionicons name="medical" size={16} color="#FFF" />
+                            <View style={styles.avatarContainer}>
+                                <LinearGradient
+                                    colors={[COLORS.primary, COLORS.accent]}
+                                    style={styles.avatarGradient}
+                                >
+                                    <MaterialCommunityIcons name="robot" size={16} color="white" />
+                                </LinearGradient>
                             </View>
                         )}
-                        <Text
+                        <View
                             style={[
-                                styles.messageText,
-                                msg.isUser ? styles.userText : styles.botText,
+                                styles.messageBubble,
+                                msg.isUser ? styles.userBubble : styles.botBubble,
                             ]}
                         >
-                            {msg.text}
-                        </Text>
-                        <Text style={[styles.timestamp, msg.isUser ? { color: '#FFCDD2' } : { color: '#999' }]}>
-                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-                    </View>
+                            <ThemedText
+                                style={[
+                                    styles.messageText,
+                                    msg.isUser ? styles.userText : styles.botText,
+                                ]}
+                            >
+                                {msg.text}
+                            </ThemedText>
+                            <ThemedText style={[styles.timestamp, msg.isUser ? styles.userTimestamp : styles.botTimestamp]}>
+                                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </ThemedText>
+                        </View>
+                    </Animated.View>
                 ))}
 
                 {isLoading && (
-                    <View style={styles.loadingContainer}>
-                        <View style={styles.botIcon}>
-                            <Ionicons name="medical" size={16} color="#FFF" />
+                    <View style={styles.botWrapper}>
+                        <View style={styles.avatarContainer}>
+                            <LinearGradient
+                                colors={[COLORS.primary, COLORS.accent]}
+                                style={styles.avatarGradient}
+                            >
+                                <MaterialCommunityIcons name="robot" size={16} color="white" />
+                            </LinearGradient>
                         </View>
-                        <View style={styles.typingBubble}>
-                            <ActivityIndicator size="small" color="#FF0000" />
+                        <View style={[styles.messageBubble, styles.botBubble, styles.typingBubble]}>
+                            <ActivityIndicator size="small" color={COLORS.primary} />
                         </View>
                     </View>
                 )}
             </ScrollView>
 
-            {/* Input Area */}
-            <View style={styles.inputContainer}>
-                <TouchableOpacity style={styles.attachButton}>
-                    <Ionicons name="add" size={24} color="#FF0000" />
-                </TouchableOpacity>
+            {/* Premium Input Area */}
+            <View style={styles.inputOuterContainer}>
+                <View style={styles.inputContainer}>
+                    <TouchableOpacity style={styles.addButton}>
+                        <MaterialCommunityIcons name="plus" size={24} color={COLORS.textLight} />
+                    </TouchableOpacity>
 
-                <TextInput
-                    style={styles.input}
-                    placeholder="Ask about your health..."
-                    value={inputText}
-                    onChangeText={setInputText}
-                    multiline
-                />
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Type your message..."
+                        placeholderTextColor={COLORS.textLight}
+                        value={inputText}
+                        onChangeText={setInputText}
+                        multiline
+                    />
 
-                <TouchableOpacity
-                    style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-                    onPress={sendMessage}
-                    disabled={!inputText.trim() || isLoading}
-                >
-                    <Ionicons name="send" size={20} color="#FFF" />
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+                        onPress={sendMessage}
+                        disabled={!inputText.trim() || isLoading}
+                    >
+                        <LinearGradient
+                            colors={!inputText.trim() ? ['#F1F5F9', '#F1F5F9'] : [COLORS.primary, COLORS.accent]}
+                            style={styles.sendGradient}
+                        >
+                            <MaterialCommunityIcons
+                                name="send"
+                                size={20}
+                                color={!inputText.trim() ? COLORS.textLight : "white"}
+                            />
+                        </LinearGradient>
+                    </TouchableOpacity>
+                </View>
             </View>
         </KeyboardAvoidingView>
     );
@@ -171,34 +206,34 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F7FA',
+        backgroundColor: COLORS.white,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 50,
-        paddingBottom: 15,
-        paddingHorizontal: 16,
-        backgroundColor: '#FFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#EEE',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
+        paddingTop: Platform.OS === 'ios' ? 60 : 50,
+        paddingBottom: 16,
+        paddingHorizontal: 20,
+        backgroundColor: COLORS.white,
+        ...SHADOWS.small,
+        zIndex: 10,
     },
     backButton: {
-        padding: 8,
-        marginLeft: -8,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     headerTitleContainer: {
         alignItems: 'center',
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
-        color: '#000',
+        fontWeight: '800',
+        color: COLORS.text,
     },
     statusIndicator: {
         flexDirection: 'row',
@@ -206,116 +241,139 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     statusDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#4CAF50',
-        marginRight: 4,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: COLORS.success,
+        marginRight: 6,
     },
     statusText: {
         fontSize: 12,
-        color: '#666',
+        color: COLORS.textLight,
+        fontWeight: '600',
+    },
+    moreButton: {
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     chatArea: {
         flex: 1,
     },
     chatContent: {
-        padding: 16,
-        paddingBottom: 20,
+        padding: 20,
+        paddingBottom: 40,
+    },
+    messageWrapper: {
+        flexDirection: 'row',
+        marginBottom: 20,
+        maxWidth: '85%',
+    },
+    userWrapper: {
+        alignSelf: 'flex-end',
+    },
+    botWrapper: {
+        alignSelf: 'flex-start',
+    },
+    avatarContainer: {
+        marginRight: 10,
+        alignSelf: 'flex-end',
+    },
+    avatarGradient: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     messageBubble: {
-        maxWidth: '80%',
-        padding: 12,
-        borderRadius: 20,
-        marginBottom: 12,
-        position: 'relative',
+        padding: 16,
+        borderRadius: 24,
+        ...SHADOWS.small,
     },
     userBubble: {
-        alignSelf: 'flex-end',
-        backgroundColor: '#FF0000',
+        backgroundColor: COLORS.primary,
         borderBottomRightRadius: 4,
     },
     botBubble: {
-        alignSelf: 'flex-start',
-        backgroundColor: '#FFF',
-        borderTopLeftRadius: 4,
-        marginLeft: 36,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        elevation: 1,
-    },
-    botIcon: {
-        position: 'absolute',
-        left: -36,
-        bottom: 0,
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: '#FF0000',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderBottomLeftRadius: 4,
     },
     messageText: {
         fontSize: 15,
         lineHeight: 22,
     },
     userText: {
-        color: '#FFF',
+        color: COLORS.white,
+        fontWeight: '500',
     },
     botText: {
-        color: '#333',
+        color: COLORS.text,
+        fontWeight: '500',
     },
     timestamp: {
         fontSize: 10,
-        marginTop: 4,
-        alignSelf: 'flex-end',
+        marginTop: 6,
     },
-    loadingContainer: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        marginBottom: 12,
-        marginLeft: 36,
+    userTimestamp: {
+        color: '#FECACA',
+        textAlign: 'right',
+    },
+    botTimestamp: {
+        color: COLORS.textLight,
+        textAlign: 'left',
     },
     typingBubble: {
-        backgroundColor: '#FFF',
-        padding: 10,
-        borderRadius: 16,
-        borderTopLeftRadius: 4,
-        width: 50,
+        width: 60,
         alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+    },
+    inputOuterContainer: {
+        paddingHorizontal: 20,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+        paddingTop: 10,
+        backgroundColor: COLORS.white,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 10,
-        paddingBottom: 30, // Safe area
-        backgroundColor: '#FFF',
-        borderTopWidth: 1,
-        borderTopColor: '#EEE',
+        backgroundColor: COLORS.surface,
+        borderRadius: 28,
+        padding: 6,
+        ...SHADOWS.small,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
-    attachButton: {
-        padding: 10,
-    },
-    input: {
-        flex: 1,
-        backgroundColor: '#F5F5F5',
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 10, // Better multiline
-        maxHeight: 100,
-        marginHorizontal: 8,
-        fontSize: 15,
-    },
-    sendButton: {
+    addButton: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#FF0000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    input: {
+        flex: 1,
+        maxHeight: 100,
+        fontSize: 15,
+        color: COLORS.text,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    sendButton: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        overflow: 'hidden',
+    },
+    sendGradient: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
     sendButtonDisabled: {
-        backgroundColor: '#FFCDD2',
+        opacity: 0.8,
     },
 });
+

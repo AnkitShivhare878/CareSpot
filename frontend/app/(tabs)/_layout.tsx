@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 // 1. Import the icon library directly for better medical options
-import { MaterialCommunityIcons } from '@expo/vector-icons'; 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
 // We don't strictly need IconSymbol anymore if we use MaterialCommunityIcons directly
@@ -23,15 +23,15 @@ export default function TabLayout() {
           height: 60, // Added slightly more height for better touch area
           paddingBottom: 8, // Adjust padding for visual balance
         },
-        tabBarActiveTintColor: '#FF0000', // Red for active
-        tabBarInactiveTintColor: '#000000', // Black for inactive
+        tabBarActiveTintColor: '#E11D48', // Primary Rose
+        tabBarInactiveTintColor: '#64748B', // Slate Light
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             // Changed to MaterialCommunityIcons 'home-variant'
             <MaterialCommunityIcons size={28} name="home-variant" color={color} />
           ),
@@ -42,7 +42,7 @@ export default function TabLayout() {
         name="doctor"
         options={{
           title: 'Doctor',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             // Changed to 'stethoscope' (or use 'doctor')
             <MaterialCommunityIcons size={28} name="stethoscope" color={color} />
           ),
@@ -53,7 +53,7 @@ export default function TabLayout() {
         name="ambulance"
         options={{
           title: 'Ambulance',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             // Changed to actual 'ambulance' icon
             <MaterialCommunityIcons size={28} name="ambulance" color={color} />
           ),
@@ -64,7 +64,7 @@ export default function TabLayout() {
         name="hospitals"
         options={{
           title: 'Hospitals',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             // Changed to 'hospital-building'
             <MaterialCommunityIcons size={28} name="hospital-building" color={color} />
           ),
@@ -75,7 +75,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color }: { color: string }) => (
             // Changed to 'account'
             <MaterialCommunityIcons size={28} name="account" color={color} />
           ),

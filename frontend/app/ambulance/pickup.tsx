@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Keyboard, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, TextInput, Keyboard, Platform, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
 import AmbulanceMap from '../../components/AmbulanceMap';
+import { ThemedText } from '@/components/themed-text';
+import { COLORS, SHADOWS } from '../../constants/theme';
+import Animated, { FadeInDown, FadeInUp, SlideInDown, withSpring, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+
+const { width } = Dimensions.get('window');
 
 const AmbulancePickupScreen = () => {
   const router = useRouter();
@@ -28,7 +35,6 @@ const AmbulancePickupScreen = () => {
         }
 
         console.log("📍 Getting current position...");
-        // Add a timeout because getCurrentPosition can be slow/stuck on some browsers
         const locationPromise = Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
@@ -51,7 +57,6 @@ const AmbulancePickupScreen = () => {
   }, []);
 
   const useFallbackLocation = () => {
-    // Default to Bangalore (matches MOCK_DATA in server)
     const fallbackLoc = {
       coords: {
         latitude: 12.9716,
@@ -69,7 +74,6 @@ const AmbulancePickupScreen = () => {
   };
 
   const generateNearbyAmbulances = (lat: number, long: number) => {
-    // Generate 3 random locations near the user
     const ambulances = Array.from({ length: 3 }).map((_, i) => ({
       id: i,
       latitude: lat + (Math.random() - 0.5) * 0.01,
@@ -101,6 +105,7 @@ const AmbulancePickupScreen = () => {
   };
 
   const focusMyLocation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (location) {
       setMapRegion({
         latitude: location.coords.latitude,
@@ -111,24 +116,32 @@ const AmbulancePickupScreen = () => {
     }
   };
 
+  const handleConfirm = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/ambulance/destination');
+  };
+
   return (
     <View style={styles.container}>
       {/* Search Bar Overlay */}
-      <View style={styles.searchContainer}>
+      <Animated.View entering={FadeInDown.duration(800)} style={styles.searchContainer}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.text} />
         </TouchableOpacity>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search location (e.g., City Hospital)"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearch}
-        />
-        <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
-          <Ionicons name="search" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.searchBox}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search pickup location..."
+            placeholderTextColor={COLORS.textLight}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={handleSearch}
+          />
+          <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
+            <MaterialCommunityIcons name="magnify" size={22} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
 
       {/* Map */}
       <View style={styles.mapContainer}>
@@ -141,19 +154,42 @@ const AmbulancePickupScreen = () => {
       </View>
 
       {/* Focus Location Button */}
-      <TouchableOpacity style={styles.focusButton} onPress={focusMyLocation}>
-        <Ionicons name="locate" size={26} color="#000" />
+      <TouchableOpacity
+        style={styles.focusButton}
+        onPress={focusMyLocation}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="crosshairs-gps" size={24} color={COLORS.primary} />
       </TouchableOpacity>
 
-      {/* Confirm */}
-      <View style={styles.footer}>
+      {/* Footer / Confirm Panel */}
+      <Animated.View entering={SlideInDown.duration(600).springify()} style={styles.footer}>
+        <View style={styles.locationInfo}>
+          <View style={styles.locationDot} />
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.locationLabel}>Pickup Location</ThemedText>
+            <ThemedText style={styles.locationAddress} numberOfLines={1}>
+              {searchQuery || (location ? "Current Location" : "Locating...")}
+            </ThemedText>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.confirmButton}
-          onPress={() => router.push('/ambulance/destination')}
+          onPress={handleConfirm}
+          activeOpacity={0.9}
         >
-          <Text style={styles.confirmButtonText}>Confirm Pick-up location</Text>
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.accent]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.confirmGradient}
+          >
+            <ThemedText style={styles.confirmButtonText}>Confirm Pickup Location</ThemedText>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.white} />
+          </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </View>
   );
 };
@@ -163,94 +199,123 @@ export default AmbulancePickupScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.white,
   },
-
   searchContainer: {
     position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
+    top: Platform.OS === 'ios' ? 60 : 50,
+    left: 16,
+    right: 16,
     zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 25,
-    padding: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    gap: 12,
   },
-
   backButton: {
-    padding: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.medium,
   },
-
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 24,
+    paddingLeft: 20,
+    paddingRight: 4,
+    height: 48,
+    ...SHADOWS.medium,
+  },
   searchInput: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    fontSize: 16,
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '500',
   },
-
   searchButton: {
-    backgroundColor: '#E10600',
+    backgroundColor: COLORS.primary,
     borderRadius: 20,
-    padding: 8,
-    marginRight: 2,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-
   mapContainer: {
     flex: 1,
-    backgroundColor: '#F2F2F2',
   },
-
   focusButton: {
     position: 'absolute',
-    bottom: 100, // Above the footer
+    bottom: 180,
     right: 20,
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 100,
+    backgroundColor: COLORS.white,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.medium,
+    zIndex: 10,
   },
-
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 10,
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    ...SHADOWS.large,
   },
-
-  confirmButton: {
-    padding: 18,
-    backgroundColor: '#FF0000',
-    borderRadius: 16,
+  locationInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#FF0000',
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    marginBottom: 20,
+    backgroundColor: COLORS.surface,
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
   },
-
+  locationDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.primary,
+    borderWidth: 3,
+    borderColor: '#FFCDD2',
+  },
+  locationLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  locationAddress: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '700',
+  },
+  confirmButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.medium,
+  },
+  confirmGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 18,
+    gap: 8,
+  },
   confirmButtonText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: COLORS.white,
   },
 });
